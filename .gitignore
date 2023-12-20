@@ -52,7 +52,5 @@ l10n/
 notebooks/playground.ipynb
 data/intermin
 data/raw
-models
-references
-reports
 */__pycache__
+*/delete.ipynb
