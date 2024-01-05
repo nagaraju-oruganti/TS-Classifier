@@ -79,7 +79,7 @@ class Labeler:
         plt.title(title)
         plt.show()
     
-    def make(self):
+    def make(self, verbose = True):
         
         ## Parse problem definition
         input_freq = self.config.horizon_def['in_freq']
@@ -112,7 +112,7 @@ class Labeler:
         
         df = pd.concat(dfs, axis = 0)
         df.reset_index(drop = True, inplace = True)
-        if self.config.show_label_distributions:
+        if verbose & self.config.show_label_distributions:
             title = f'input time interval: {input_freq}m, lookahead: {lookahead}time_units, pct_threshold: {pct_thresh}'
             self.label_distributions(df = df, title = title)
             

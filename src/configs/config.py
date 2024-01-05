@@ -7,9 +7,9 @@ import numpy as np
 # Local modules
 from utils.random_seed import seed_everything
 
-INPUT_FREQ = [1, 3, 5, 10, 15] + list(range(30, 121, 30)) + [180, 240]
-HORIZONS = list(range(2, 26))
-PCT_THRESHOLDS = [1, 2, 3, 4]
+INPUT_FREQ = [3, 5, 10, 15, 30, 60, 120, 150, 180, 240]
+HORIZONS = list(range(2, 25, 3))
+PCT_THRESHOLDS = [1, 2, 3]
 
 class Config:
     
@@ -18,12 +18,14 @@ class Config:
         
     # DEVICE
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'Device: {device}')
     
     # DATA CONFIGURATION
     data_dir = 'data'
     models_dir ='models'
     raw_data_path = '../../Datasets/data/new_binance/BTC_futures_1m.csv'
     model_name = 'delete'                     # creates path to save the trained models
+    prep_data_path = ''
     
     # DATA SPLITS
     # Train, valid, and test splits
@@ -86,7 +88,7 @@ class Config:
     
     ## Train convergence parameters
     save_epoch_wait = 0
-    early_stop_count = 20
+    early_stop_count = 10
     save_checkpoint = True
     
     ## Intermin output
@@ -99,3 +101,6 @@ class Config:
         'short'     : 2,
         'either'    : 3}
     REVERSE_LABEL_MAPPER = {v:k for k, v in LABEL_MAPPER.items()}
+    
+    ## Train with batches
+    n_batches = {'train': 4, 'valid' : 2}

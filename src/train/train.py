@@ -17,6 +17,8 @@ from sklearn.metrics import mean_squared_error
 
 ## Local imports
 from models.lstm import HSLSTMForDirection
+from utils import utils
+from data import dataset
 from data.dataset import MakeDataloaders
 from train.trainer import trainer
 
@@ -27,15 +29,19 @@ import gc
 
 def train_model(config):
     print();print('-'*50);print(); print(f'Training fold {config.fold}')
-    print(config.horizon_def)
+    print('Horizon definition: ', config.horizon_def)
     device = config.device
     
     config.dest_path = os.path.join(config.models_dir, config.model_name)
     os.makedirs(config.dest_path, exist_ok=True)
     
-    # dataloaders
-    train_loader, valid_loader, _, class_weights = MakeDataloaders(config, fold = config.fold).make()
-    print(f'Class weights: {class_weights}')
+    ## class weights
+    class_weights = dataset.estimate_class_weights(config, fold = config.fold)
+    print(f'class weights: {class_weights}')
+    
+    ## Train with batches
+    config.n_batches = utils.estimate_n_batches(config = config)
+    print(f'Training with {config.n_batches} batches')
     
     # define model
     if config.model_kind == 'hslstm':
@@ -49,10 +55,13 @@ def train_model(config):
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'max', factor=0.5, patience=4)
     
     # Trainer
-    results = trainer(config, model, train_loader, valid_loader, optimizer, scheduler)
+    results = trainer(config, model, optimizer, scheduler)
     
     ### SAVE RESULTS
     with open(os.path.join(config.dest_path, f'results{config.fold}.pkl'), 'wb') as f:
         pickle.dump(results, f)
         
+    ## Remove parent folder of prep data
+    utils.remove(root = config.prep_data_path)
+
     return results

@@ -3,7 +3,6 @@ import pickle
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from datetime import datetime
 
 import torch
 import torch.nn as nn
@@ -14,7 +13,10 @@ from torchsummary import summary
 from datetime import datetime
 
 from sklearn.metrics import mean_squared_error
-from evaluate.evaluators import evaluator
+
+# local modules
+from evaluate import evaluators
+from data import dataset
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -24,7 +26,10 @@ import gc
 #TODO: Make this function into a class
 
 #### Trainer
-def trainer(config, model, train_loader, valid_loader, optimizer, scheduler):
+def trainer(config, model, optimizer, scheduler):
+    
+    ## DATALOADERS
+    dataloaders = dataset.MakeDataloaders(config = config, fold = config.fold)
     
     def update_que():
         que.set_postfix({
@@ -57,14 +62,16 @@ def trainer(config, model, train_loader, valid_loader, optimizer, scheduler):
         def print_result():
             print('')
             text =  f'>>> [{datetime.now()} | {epoch + 1}/{NUM_EPOCHS} | Early stopping counter {counter}] \n'
-            text += f'    loss          - train: {dis(train_loss)}      valid: {dis(valid_loss)} \n'
+            text += f'    loss          - train: {dis(train_loss)}     valid: {dis(valid_loss)} \n'
             text += f'    score         - train: {dis(train_score)}     valid: {dis(valid_score)} \n'
             text += f'    learning rate        : {optimizer.param_groups[0]["lr"]:.5e}'
             print(text + '\n')
         
         # Evaluation
-        train_score, train_loss, _ = evaluator(model, train_loader, device) 
-        valid_score, valid_loss, eval_results = evaluator(model, valid_loader, device)
+        dict_output = evaluators.evaluate_with_batches(model, dataloaders, config.n_batches, device, verbose = False)
+        train_score, train_loss = dict_output['train_score'], dict_output['train_loss']
+        valid_score, valid_loss = dict_output['valid_score'], dict_output['valid_loss']
+        eval_results = dict_output['eval_results']
         
         # append results
         lr =  optimizer.param_groups[0]["lr"]
@@ -99,6 +106,7 @@ def trainer(config, model, train_loader, valid_loader, optimizer, scheduler):
     device = config.device
     precision = torch.bfloat16 if str(device) == 'cpu' else torch.float16
     NUM_EPOCHS = config.num_epochs
+    n_batches = config.n_batches['train']
     iters_to_accumlate = config.iters_to_accumulate
     
     # dummy value for placeholders
@@ -114,29 +122,35 @@ def trainer(config, model, train_loader, valid_loader, optimizer, scheduler):
     for epoch in range(NUM_EPOCHS):
         model.train()
         batch_loss_list = []
-        que = tqdm(enumerate(train_loader), total = len(train_loader), desc = f'Epoch {epoch + 1}')
-        for i, ((_,_,_, inputs, targets)) in que:
-            
-            ###### TRAINING SECQUENCE            
-            #with autocast(device_type = str(device), dtype = precision):
-            with autocast(enabled=True, device_type = str(device), dtype=precision) as _autocast, \
-                torch.backends.cuda.sdp_kernel(enable_flash=False) as disable :
-                _, loss = model(inputs.to(device), targets.to(device))            # Forward pass
-                loss = loss / iters_to_accumlate
-            
-            # - Accmulates scaled gradients  
-            scaler.scale(loss).backward()           # scale loss
-            
-            if (i + 1) % iters_to_accumlate == 0:
-                scaler.step(optimizer)                  # step
-                scaler.update()
-                optimizer.zero_grad()
-            #######
-            
-            batch_loss_list.append((loss.item() * iters_to_accumlate))
-            
-            # Update que status
-            update_que()
+        for batch_idx in range(n_batches):
+            train_loader = dataloaders.make_train(batch_idx = batch_idx)
+            que = tqdm(enumerate(train_loader), total = len(train_loader), desc = f'Epoch {epoch + 1} | batch {batch_idx + 1} / {n_batches}')
+            for i, ((_,_,_, inputs, targets)) in que:
+                
+                ###### TRAINING SECQUENCE            
+                #with autocast(device_type = str(device), dtype = precision):
+                with autocast(enabled=True, device_type = str(device), dtype=precision) as _autocast, \
+                    torch.backends.cuda.sdp_kernel(enable_flash=False) as disable :
+                    _, loss = model(inputs.to(device), targets.to(device))            # Forward pass
+                    loss = loss / iters_to_accumlate
+                
+                # - Accmulates scaled gradients  
+                scaler.scale(loss).backward()           # scale loss
+                
+                if (i + 1) % iters_to_accumlate == 0:
+                    scaler.step(optimizer)                  # step
+                    scaler.update()
+                    optimizer.zero_grad()
+                #######
+                
+                batch_loss_list.append((loss.item() * iters_to_accumlate))
+                
+                # Update que status
+                update_que()
+                
+            # clean memory
+            del train_loader
+            _ = gc.collect()
             
         ### Run evaluation sequence
         ref_score, counter, done = run_evaluation_sequence(ref_score, counter)

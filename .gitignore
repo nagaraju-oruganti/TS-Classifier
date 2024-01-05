@@ -54,3 +54,5 @@ data/intermin
 data/raw
 */__pycache__
 */delete.ipynb
+models
+reports
