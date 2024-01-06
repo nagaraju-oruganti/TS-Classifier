@@ -8,7 +8,7 @@ def estimator(df):
     dist = dict(df['label'].value_counts())
     
     total_samples = len(df)
-    for c in [0, 1, 2, 3]:
+    for c in sorted(dist.keys()):
         class_weights.append(
             1 - (dist[c] / total_samples)
         )

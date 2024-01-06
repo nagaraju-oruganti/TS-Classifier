@@ -18,6 +18,7 @@ class HSLSTMForDirection(nn.Module):
         self.input_size = config.max_len
         self.hidden_size = self.input_size * 2
         self.dropout_prob = model_params['dropout_prob']
+        self.output_size = min(len(class_weights), config.output_size)
 
         # Define model architecture
         self.lstm_layers = nn.ModuleList([nn.LSTMCell(self.input_size, self.hidden_size)])
@@ -25,7 +26,7 @@ class HSLSTMForDirection(nn.Module):
         self.dropout_layers = nn.ModuleList([nn.Dropout(self.dropout_prob) for _ in range(self.num_layers)])
         
         # Momentum predictor
-        self.fc = nn.Linear(self.hidden_size, config.output_size)
+        self.fc = nn.Linear(self.hidden_size, self.output_size)
         
         ## Loss functions
         self.loss_fn = nn.CrossEntropyLoss(weight = torch.tensor(class_weights, dtype = torch.float32))

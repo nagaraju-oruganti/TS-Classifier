@@ -31,10 +31,11 @@ from data.labeler import Labeler
 ################################################################################################
 class MyDataset(Dataset):
     
-    def __init__(self, config, df, data = None):
+    def __init__(self, config, df, data = None, original_start_date = None):
         self.config = config
         self.dt_column = config.dt_column
         self.df = df
+        self.original_start_date = pd.to_datetime('01/01/1970') if original_start_date is None else original_start_date
         self.data = self.prepare_data() if data is None else data
         
     def prepare_data(self):
@@ -55,16 +56,16 @@ class MyDataset(Dataset):
             for i in range(len(sub) - max_len, -1, -step_size):
                 
                 start, end = i, i+max_len       # boundery indices
-                
-                patch = sub[features][start:end]
-                if len(patch) == max_len:
-                    data.append(dict(
-                        ticker      = tic,
-                        start       = str(sub[self.dt_column].values[start]),
-                        end         = str(sub[self.dt_column].values[end - 1]),
-                        inputs      = patch.values,
-                        target      = sub[target].values[end-1],
-                    ))
+                if sub[self.dt_column].values[end - 1] >= self.original_start_date:
+                    patch = sub[features][start:end]
+                    if len(patch) == max_len:
+                        data.append(dict(
+                            ticker      = tic,
+                            start       = str(sub[self.dt_column].values[start]),
+                            end         = str(sub[self.dt_column].values[end - 1]),
+                            inputs      = patch.values,
+                            target      = sub[target].values[end-1],
+                        ))
         
         return data
     
@@ -140,10 +141,10 @@ class MakeDataloaders:
             dataset = MyDataset(config = self.config, df = pd.DataFrame(), data = batch_data)
         else:
             df = self.train.copy() if kind == 'train' else self.valid.copy()
-            start_date, end_date = self.train_date_ranges[batch_idx] if kind == 'train' else self.valid_date_ranges[batch_idx]
+            original_start_date, start_date, end_date = self.train_date_ranges[batch_idx] if kind == 'train' else self.valid_date_ranges[batch_idx]
             start_date, end_date = pd.to_datetime(start_date), pd.to_datetime(end_date)
             df = df[(df[self.dt_column] >= start_date) & (df[self.dt_column] <= end_date)]
-            dataset = MyDataset(config = self.config, df = df, data = None)
+            dataset = MyDataset(config = self.config, df = df, data = None, original_start_date = original_start_date)
             with open(data_path, 'wb') as f:
                 pickle.dump(dataset.data, f)
             
