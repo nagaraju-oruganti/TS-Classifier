@@ -33,7 +33,7 @@ class HSLSTMForDirection(nn.Module):
         
         self.device = self.config.device
         
-    def forward(self, x, y):
+    def forward(self, x, y = None):
         
         ### SHARED NETWORK
         h, c = [], []

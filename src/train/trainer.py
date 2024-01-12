@@ -38,7 +38,7 @@ def trainer(config, model, optimizer, scheduler):
             'learning_rate'     : optimizer.param_groups[0]["lr"],
             })
     
-    def save_checkpoint(model, epoch, eval_results, best = False):
+    def save_checkpoint(model, epoch, eval_results, df_eval_results, best = False):
         if best:
             save_path = os.path.join(config.dest_path, f'model{config.fold}.pth')
             if config.save_checkpoint:
@@ -52,6 +52,9 @@ def trainer(config, model, optimizer, scheduler):
             # save evaluation results
             with open(os.path.join(config.dest_path, f'eval_results{config.fold}.pkl'), 'wb') as f:
                 pickle.dump(eval_results, f)
+                
+            # in dataframe format
+            df_eval_results.to_csv(os.path.join(config.dest_path, f'df_eval_results{config.fold}.csv'), index = False)
                 
             print(f'>>> [{datetime.now()}] - Checkpoint and predictions saved')
         
@@ -72,6 +75,7 @@ def trainer(config, model, optimizer, scheduler):
         train_score, train_loss = dict_output['train_score'], dict_output['train_loss']
         valid_score, valid_loss = dict_output['valid_score'], dict_output['valid_loss']
         eval_results = dict_output['eval_results']
+        df_eval_results = dict_output['df_eval_results']
         
         # append results
         lr =  optimizer.param_groups[0]["lr"]
@@ -83,7 +87,7 @@ def trainer(config, model, optimizer, scheduler):
         
         ### Save checkpoint
         if ((epoch + 1) > config.save_epoch_wait):
-            save_checkpoint(model, epoch, eval_results, best = eval_metric > ref_score)
+            save_checkpoint(model, epoch, eval_results, df_eval_results, best = eval_metric > ref_score)
         
         # Tracking early stop
         counter = 0 if eval_metric >= ref_score else counter + 1

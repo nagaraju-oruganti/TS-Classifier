@@ -9,7 +9,7 @@ from utils.random_seed import seed_everything
 
 INPUT_FREQ = [3, 5, 10, 15, 30, 60, 120, 150, 180, 240]
 HORIZONS = list(range(2, 25, 3))
-PCT_THRESHOLDS = [1, 2, 3]
+PCT_THRESHOLDS = [1, 2, 3, 4]
 
 class Config:
     
@@ -56,7 +56,7 @@ class Config:
         'pct_thresh'    : 2/100.,
         'lookahead'     : 60 * 4,       # minutes
     }
-    
+    project_on_intrarange = False
     ## TICKERS
     tickers = ['1000SHIB', 'ADA', 'ATOM', 'AVAX', 'BNB', 'BTC', 'DOGE', 'DOT', 'ETC', 'ETH',
                'FIL', 'ICP', 'LDO', 'LINK', 'LTC', 'MATIC', 'SOL', 'TRX', 'UNI', 'XLM', 'XMR', 'XRP']
@@ -83,6 +83,8 @@ class Config:
     valid_batch_size = 32
     sample_run = False
     learning_rate = 5e-5
+    lr_multiplier = 0.5
+    lr_patience = 4
     num_epochs = 1000
     iters_to_accumulate = 4
     
@@ -103,4 +105,5 @@ class Config:
     REVERSE_LABEL_MAPPER = {v:k for k, v in LABEL_MAPPER.items()}
     
     ## Train with batches
-    n_batches = {'train': 4, 'valid' : 2}
+    n_batches = {'train': 4, 'valid' : 2, 'test' : 2}
+    train_with_external_drive = False

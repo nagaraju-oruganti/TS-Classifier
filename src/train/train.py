@@ -52,7 +52,9 @@ def train_model(config):
     
     # optmizer and scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr = config.learning_rate)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'max', factor=0.5, patience=4)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'max', 
+                                                           factor=config.lr_multiplier, 
+                                                           patience=config.lr_patience)
     
     # Trainer
     results = trainer(config, model, optimizer, scheduler)

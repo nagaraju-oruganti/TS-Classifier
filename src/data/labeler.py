@@ -30,14 +30,21 @@ class Labeler:
         return df
     
     def create_labels(self, df, pct_thresh, lookahead):
+        
+        # ref labels
+        long_col = short_col = 'Close'
+        if self.config.project_on_intrarange:
+            long_col = 'High'
+            short_col = 'Low'
+        
         # Long labeling
         df['tgt_long'] = df['Close'] * (1 + pct_thresh)
-        df['rolling'] = df['Close'].rolling(lookahead).max().shift(-lookahead)
+        df['rolling'] = df[long_col].rolling(lookahead).max().shift(-lookahead)
         df['label_long'] = (df['rolling'] >= df['tgt_long']) * 1
 
         # Short labeling
         df['tgt_short'] = df['Close'] * (1 - pct_thresh)
-        df['rolling'] = df['Close'].rolling(lookahead).min().shift(-lookahead)
+        df['rolling'] = df[short_col].rolling(lookahead).min().shift(-lookahead)
         df['label_short'] = (df['rolling'] <= df['tgt_short']) * 1
         
         # Label consolidator
@@ -96,6 +103,9 @@ class Labeler:
             # percentage change in close price and volume
             df['pct_chg_close'] = df['Close'].pct_change()
             df['pct_chg_volume'] = df['Volume'].pct_change()
+            if self.config.project_on_intrarange:
+                df['pct_chg_low'] = df['Low'].pct_change()
+                df['pct_chg_high'] = df['High'].pct_change()
             df[self.config.features] = df[self.config.features].replace(np.inf, np.nan)
             df = df.fillna(method = 'bfill')
             

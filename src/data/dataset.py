@@ -52,11 +52,11 @@ class MyDataset(Dataset):
         for tic in self.config.tickers:
             sub = self.df[self.df['ticker'] == tic]
             sub[self.dt_column] = pd.to_datetime(sub[self.dt_column])
-            sub.sort_values(by = self.dt_column, ascending = False, inplace = True)
+            sub.sort_values(by = self.dt_column, ascending = True, inplace = True)
             for i in range(len(sub) - max_len, -1, -step_size):
                 
                 start, end = i, i+max_len       # boundery indices
-                if sub[self.dt_column].values[end - 1] >= self.original_start_date:
+                if sub[self.dt_column].values[end-1] >= self.original_start_date:
                     patch = sub[features][start:end]
                     if len(patch) == max_len:
                         data.append(dict(
@@ -64,9 +64,8 @@ class MyDataset(Dataset):
                             start       = str(sub[self.dt_column].values[start]),
                             end         = str(sub[self.dt_column].values[end - 1]),
                             inputs      = patch.values,
-                            target      = sub[target].values[end-1],
+                            target      = sub[target].values[end - 1],
                         ))
-        
         return data
     
     def __len__(self):
@@ -112,6 +111,7 @@ class MakeDataloaders:
         
         ### Make train, validation datasets
         df[self.dt_column] = pd.to_datetime(df[self.dt_column])
+        print(df[self.dt_column].min(), df[self.dt_column].max())
         folds = self.config.folds[self.fold]
         
         # Train dataset
@@ -127,6 +127,17 @@ class MakeDataloaders:
         end     = pd.to_datetime(end)
         self.valid = df[(df[self.dt_column] >= start) & (df[self.dt_column] < end)]
         self.valid_date_ranges = self.date_boundaries(start, end, kind = 'valid')
+
+        # test dataset
+        (start, end) = self.config.splits['test']
+        start   = pd.to_datetime(start) + timedelta(hours = -self.max_len)
+        end     = pd.to_datetime(end)
+        self.test = df[(df[self.dt_column] >= start) & (df[self.dt_column] <= end)]
+        self.test_date_ranges = self.date_boundaries(start, end, kind = 'test')
+        
+        ## Data mappers
+        self.data_mapper = {'train': self.train, 'valid': self.valid, 'test': self.test}
+        self.date_range_mapper = {'train': self.train_date_ranges, 'valid': self.valid_date_ranges, 'test': self.test_date_ranges}
         
     def date_boundaries(self, start, end, kind = 'train'):
        return divide_date_range(start, end, num_batches = self.config.n_batches[kind], leap_back = -self.max_len)
@@ -140,8 +151,8 @@ class MakeDataloaders:
                 batch_data = pickle.load(f)
             dataset = MyDataset(config = self.config, df = pd.DataFrame(), data = batch_data)
         else:
-            df = self.train.copy() if kind == 'train' else self.valid.copy()
-            original_start_date, start_date, end_date = self.train_date_ranges[batch_idx] if kind == 'train' else self.valid_date_ranges[batch_idx]
+            df = self.data_mapper[kind].copy()
+            original_start_date, start_date, end_date = self.date_range_mapper[kind][batch_idx]
             start_date, end_date = pd.to_datetime(start_date), pd.to_datetime(end_date)
             df = df[(df[self.dt_column] >= start_date) & (df[self.dt_column] <= end_date)]
             dataset = MyDataset(config = self.config, df = df, data = None, original_start_date = original_start_date)
@@ -163,6 +174,9 @@ class MakeDataloaders:
     
     def make_valid(self, batch_idx, verbose = False):
         return self.make_data(kind = 'valid', batch_idx = batch_idx, verbose = verbose)
+    
+    def make_test(self, batch_idx, verbose = False):
+        return self.make_data(kind = 'test', batch_idx = batch_idx, verbose = verbose)
         
     def make(self, batch_idx, verbose = True):
         

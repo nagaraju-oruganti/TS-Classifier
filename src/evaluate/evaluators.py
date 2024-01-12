@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn.functional as F
 from sklearn.metrics import mean_squared_error, f1_score, accuracy_score
@@ -19,7 +20,6 @@ def evaluate_with_batches(model, dataloader, n_batches, device, verbose):
         del train_loader, y_trues, y_preds
         _ = gc.collect()
         
-    
     valid_y_trues, valid_y_preds = [], []
     valid_results = []
     for batch_idx in range(n_batches['valid']):
@@ -34,17 +34,25 @@ def evaluate_with_batches(model, dataloader, n_batches, device, verbose):
         del valid_loader, y_trues, y_preds, results
         _ = gc.collect()
         
+    # estimate accuracies
+    cols = ['ticker', 'start', 'end', 'target', 'prob_0', 'prob_1', 'prob_2', 'prob_3', 'pred_label']
+    df = pd.DataFrame(valid_results, columns = cols)
+    ind_acc = {}
+    for lbl in sorted(df['target'].unique()):
+        sub = df[df['target'] == lbl]
+        ind_acc[lbl] = round(sum(sub['pred_label'] == lbl) / len(sub), 5)
+    print('Validation accuracies by labels: ', ind_acc)
+        
     # scoring
     dict_output = {
-        'train_score'   : f1_score(y_true = train_y_trues, y_pred = train_y_preds, average = 'weighted'),
-        'valid_score'   : f1_score(y_true = valid_y_trues, y_pred = valid_y_preds, average = 'weighted'),
+        'train_score'   : f1_score(y_true = train_y_trues, y_pred = train_y_preds, average = 'macro'),
+        'valid_score'   : f1_score(y_true = valid_y_trues, y_pred = valid_y_preds, average = 'macro'),
         'train_loss'    : np.mean(train_loss_list),
         'valid_loss'    : np.mean(valid_loss_list),
-        'eval_results'  : valid_results
+        'eval_results'  : valid_results,
+        'df_eval_results'    : df
     }
-    
     return dict_output
-        
 
 def evaluator(model, dataloader, device = 'cpu'):
     results = []
