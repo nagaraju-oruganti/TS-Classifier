@@ -51,7 +51,7 @@ l10n/
 ### FOLDERS/FILES TO IGNORE
 notebooks/playground.ipynb
 data/intermin
-data/raw
+data/*
 */__pycache__
 */delete.ipynb
 models

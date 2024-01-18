@@ -25,6 +25,7 @@ import gc
 from utils.class_weights import estimator
 from utils.utils import divide_date_range
 from data.labeler import Labeler
+from data.volume_bar import Labeler as VolLabeler
 
 ################################################################################################
 # PyTorch Dataset
@@ -102,8 +103,12 @@ class MakeDataloaders:
         
     def read_data(self):
         ### Get normalized dataset from preprocessing
-        prep = Labeler(config = self.config)
-        df = prep.make(verbose = False)
+        if self.config.train_with_volumebars:
+            prep = VolLabeler(config = self.config)
+            df = prep.make(verbose = True)
+        else:
+            prep = Labeler(config = self.config)
+            df = prep.make(verbose = True)
         df = df[df['ticker'].isin(self.config.tickers)]
         return df
         
@@ -220,8 +225,12 @@ class MakeDataloaders:
     
 ### Estimate class weights
 def estimate_class_weights(config, fold):
-    prep = Labeler(config = config)
-    df = prep.make()
+    if config.train_with_volumebars:
+        prep = VolLabeler(config = config)
+        df = prep.make(verbose = False) 
+    else:
+        prep = Labeler(config = config)
+        df = prep.make(verbose = False)
     df = df[df['ticker'].isin(config.tickers)]
     class_weights = estimator(df = df)
     return class_weights
